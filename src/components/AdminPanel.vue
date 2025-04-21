@@ -1,6 +1,6 @@
 <template>
   <a-layout class="admin-container">
-    <a-upload-dragger
+    <!-- <a-upload-dragger
       :beforeUpload="handleFile"
       :fileList="[]"
       accept=".zip"
@@ -10,11 +10,28 @@
         <inbox-outlined />
       </p>
       <p class="ant-upload-text">Click or drag ZIP file to this area to upload</p>
-    </a-upload-dragger>
+    </a-upload-dragger> -->
+
+    <div :class="['upload-wrapper', isEmptyState ? 'centered' : 'not-centered']">
+      <div class="center-card">
+        <a-upload-dragger
+          :beforeUpload="handleFile"
+          :fileList="[]"
+          accept=".zip"
+          class="upload-area"
+        >
+          <p class="ant-upload-drag-icon">
+            <inbox-outlined />
+          </p>
+          <p class="ant-upload-text">Click or drag ZIP file to this area to upload</p>
+        </a-upload-dragger>
+      </div>
+    </div>
 
     <p v-if="uploadedFileName" class="uploaded-filename">
-      ✅ Uploaded: {{ uploadedFileName }}
+        ✅ Uploaded: {{ uploadedFileName }}
     </p>
+
 
 
     <a-spin :spinning="loading" class="spinner-area">
@@ -135,7 +152,15 @@
               response: this.parsed.networkLogs.find(res => res.type === 'response' && res.requestId === req.requestId)
             };
           });
+      },
+      isEmptyState() {
+        return !this.videoUrl &&
+              !this.parsed.consoleLogs.length &&
+              !this.parsed.networkLogs.length &&
+              !this.parsed.systemInfo &&
+              !this.parsed.ipAddress;
       }
+
     },
     methods: {
       handleclose(){
@@ -208,13 +233,52 @@
           })
           .join('\n\n'); // Add spacing between logs
       },
+      StringifyObj(obj) {
+        const seen = new WeakSet();
+
+        const tryParseJSON = (value) => {
+          if (typeof value !== 'string') return value;
+
+          try {
+            const parsed = JSON.parse(value);
+            // Only return parsed if it's an object or array
+            return typeof parsed === 'object' ? parsed : value;
+          } catch {
+            return value;
+          }
+        };
+
+        return JSON.stringify(obj, (key, value) => {
+          if (typeof value === 'function') {
+            return `[Function: ${value.name || 'anonymous'}]`;
+          }
+
+          if (typeof value === 'symbol') {
+            return value.toString();
+          }
+
+          if (typeof value === 'undefined') {
+            return 'undefined';
+          }
+
+          // Check for circular references
+          if (typeof value === 'object' && value !== null) {
+            if (seen.has(value)) return '[Circular]';
+            seen.add(value);
+          }
+
+          // Try to parse stringified JSON fields
+          return tryParseJSON(value);
+        }, 2);
+      },
+
       showNetworkDetails(item) {
         this.networkModal.request = item.request
-          ? JSON.stringify(item.request, null, 2)
-          : '⚠️ Request not available';
+        ? this.StringifyObj(item.request)
+        : '⚠️ Request not available';
 
         this.networkModal.response = item.response
-          ? JSON.stringify(item.response, null, 2)
+          ? this.StringifyObj(item.response)
           : '⚠️ Response not available';
 
         this.networkModal.visible = true;
@@ -228,7 +292,69 @@
   .admin-container {
     padding: 20px;
   }
-  .upload-area {
+  .upload-wrapper {
+  margin-bottom: 30px;
+}
+
+.upload-wrapper.centered {
+  width:100%;
+  /* max-width:600px; */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px 16px;
+  height: calc(100vh - 100px);
+  flex-direction: column; 
+}
+.center-card {
+  background-color: #fff;
+  border-radius: 16px;
+  padding: 32px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+
+  transition: all 0.3s ease;
+}
+
+/* When centered (no data) */
+.centered .center-card {
+  width: 80%;
+  height: 80%;
+}
+
+/* When data exists */
+.not-centered .center-card {
+  width: 100%;
+  height: auto;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+
+
+.upload-area {
+  width: 100%;
+}
+
+.ant-upload-drag-icon {
+  font-size: 48px;
+  color: #1890ff;
+}
+
+.ant-upload-text {
+  font-size: 16px;
+  color: #666;
+}
+
+  .uploaded-filename {
+    margin-top: 10px;
+    font-size: 16px;
+    color: #4caf50;
+  }
+.upload-area {
     margin-bottom: 30px;
   }
   .spinner-area {
